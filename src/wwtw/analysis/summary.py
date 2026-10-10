@@ -1,5 +1,6 @@
 """Load committed data, compute every reported number, and write results/summary.json."""
 
+import csv
 import json
 from pathlib import Path
 
@@ -22,7 +23,18 @@ from wwtw.traces.load import read_episodes
 from wwtw.traces.replay import read_replay_csv
 
 ATTACKS = ["none", II, MA]
-PUBLISHED_AGENTDOJO: dict = {}  # Task 23 fills this from the AgentDojo results page (URL + date)
+# AgentDojo's published row for this model (no defense, important_instructions). The page lists no
+# benchmark version; the 2024-07-19 date predates v1.2, so it most likely reflects v1.
+PUBLISHED_AGENTDOJO: dict = {
+    "source": "https://agentdojo.spylab.ai/results/",
+    "accessed": "2026-10-10",
+    "model": "gpt-4o-mini-2024-07-18",
+    "date_listed": "2024-07-19",
+    "benchmark_version": "not listed",
+    "utility": 0.6804,
+    "utility_under_attack": 0.4992,
+    "targeted_asr": 0.2719,
+}
 
 
 def _rate(xs) -> float:
@@ -73,7 +85,12 @@ def analyze(cfg: ExperimentConfig, out_dir: Path | None = None) -> dict:
     fold = assign_folds(clusters, cfg.seed)
     idx = score_index(rows)
     api = cfg.monitor.models[0].name
-    full = {api, "rule"}
+    # Models that scored every side-effecting step of every episode (no subset, no time cap).
+    full = {"rule"} | {
+        m.name
+        for m in cfg.monitor.models
+        if m.attacked_scope == "all" and m.benign_episode_limit is None and m.max_minutes is None
+    }
     summary: dict = {
         "meta": {},
         "agent_baseline": {},
@@ -88,6 +105,18 @@ def analyze(cfg: ExperimentConfig, out_dir: Path | None = None) -> dict:
     by = {a: [r for r in records if r.attack == a] for a in ATTACKS}
     summary["meta"]["n_episodes"] = {a: len(v) for a, v in by.items()}
     summary["meta"]["n_clusters"] = len(clusters)
+    summary["meta"]["primary_monitor"] = api
+    summary["meta"]["n_analyzed"] = {a: sum(r.mismatch is None for r in v) for a, v in by.items()}
+    summary["meta"]["n_retried"] = sum(
+        bool(r.mismatch) and r.mismatch.startswith("retried") for r in records
+    )
+    summary["meta"]["n_neg_steps"] = sum(len(r.se_calls) for r in by["none"] if r.mismatch is None)
+    ledger = cfg.paths.data / "cost_ledger.csv"
+    spend = 0.0
+    if ledger.exists():
+        with open(ledger, newline="") as f:
+            spend = sum(float(row["cost_usd"]) for row in csv.DictReader(f))
+    summary["meta"]["total_spend_usd"] = spend
     base = {"benign_utility": _rate(r.utility for r in by["none"])}
     for a in (II, MA):
         base[a] = {

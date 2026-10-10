@@ -74,6 +74,10 @@ def test_analyze_end_to_end(tmp_path, monkeypatch):
                 bias = 30
             rows += _scores(lst, "gpt-5-nano", view, bias)
         write_scores_csv(rows, data / "scores" / "gpt-5-nano" / f"{attack}.csv")
+        mini = []
+        for view in ["V1", "V3", "V4"]:
+            mini += _scores(lst, "gpt-5-mini", view, 90)
+        write_scores_csv(mini, data / "scores" / "gpt-5-mini" / f"{attack}.csv")
         write_scores_csv(rule_rows(lst), data / "scores" / "rule" / f"{attack}.csv")
     summary = analyze(cfg)
     out = json.loads((tmp_path / "results" / "summary.json").read_text())
@@ -86,5 +90,13 @@ def test_analyze_end_to_end(tmp_path, monkeypatch):
         "important_instructions",
     ) in views
     assert summary["validity"]["replay_mismatch_rate"] == 0.0
+    meta = summary["meta"]
+    assert meta["n_analyzed"] == {"none": 6, "important_instructions": 12, "monitor_aware": 12}
+    assert meta["n_retried"] == 0
+    assert meta["n_neg_steps"] == sum(len(step_contexts(e)) for e in eps["none"])
+    assert meta["total_spend_usd"] == 0.0
+    assert meta["primary_monitor"] == "gpt-5-nano"
+    mini_rows = [r for r in out["results"] if r["model"] == "gpt-5-mini"]
+    assert mini_rows and all(r["residual_asr_5"] is not None for r in mini_rows)
     assert (tmp_path / "results" / "figures" / "catch_by_view.pdf").exists()
     assert (tmp_path / "results" / "tables" / "main_results.tex").exists()
