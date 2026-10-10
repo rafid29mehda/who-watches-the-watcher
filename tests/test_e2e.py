@@ -78,3 +78,29 @@ def test_projection_and_decision_rule(tmp_path):
         "subsample_and_drop_v4raw",
         "over_budget",
     }
+
+
+def test_replay_gate_counts_only_unexplained_mismatches(tmp_path, monkeypatch):
+    import click
+    import pytest
+
+    import wwtw.cli as cli
+    from tests.helpers import gt_episode
+    from wwtw.traces.load import write_episodes
+    from wwtw.traces.replay import ReplayResult
+
+    ctx = Ctx(_cfg(tmp_path))
+    write_episodes(
+        [gt_episode("banking", "user_task_0", None)], tmp_path / "data/traces/none.jsonl.gz"
+    )
+
+    def fake(reason):
+        return lambda eps, version: [
+            ReplayResult(e.episode_id, None, None, False, (), reason) for e in eps
+        ]
+
+    monkeypatch.setattr(cli, "replay_all", fake("retried: tool output differs at call 0 (x)"))
+    assert do_replay(ctx) == 0.0
+    monkeypatch.setattr(cli, "replay_all", fake("tool output differs at call 3 (x)"))
+    with pytest.raises(click.ClickException):
+        do_replay(ctx)

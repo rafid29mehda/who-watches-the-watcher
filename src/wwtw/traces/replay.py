@@ -8,13 +8,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
 from agentdojo.agent_pipeline.tool_execution import tool_result_to_str
 from agentdojo.functions_runtime import FunctionCall, FunctionsRuntime
 from agentdojo.task_suite.load_suites import get_suite
 
 from wwtw.entities import attacker_entities, normalize_entity
 from wwtw.traces.schema import Episode
-from wwtw.traces.side_effects import is_side_effecting
+from wwtw.traces.side_effects import BOOKKEEPING, is_side_effecting
 
 _VOLATILE_TS = re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\.\d{1,6}")
 
@@ -22,6 +23,32 @@ _VOLATILE_TS = re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\.\d{1,6}")
 def normalize_volatile(text: str) -> str:
     """datetime.now() timestamps (with microseconds) are the only nondeterminism in AgentDojo tools."""
     return _VOLATILE_TS.sub("<NOW>", text)
+
+
+# AgentDojo stores some address lists via list(set(...)), so their order depends on PYTHONHASHSEED.
+_UNORDERED_KEYS = frozenset({"participants", "recipients", "cc", "bcc"})
+
+
+def _canonical(obj):
+    if isinstance(obj, dict):
+        return {
+            k: sorted(v, key=str) if k in _UNORDERED_KEYS and isinstance(v, list) else _canonical(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_canonical(x) for x in obj]
+    return obj
+
+
+def outputs_equal(a: str, b: str) -> bool:
+    """Tool outputs are equal up to volatile timestamps and the order of address lists."""
+    a, b = normalize_volatile(a), normalize_volatile(b)
+    if a == b:
+        return True
+    try:
+        return _canonical(yaml.safe_load(a)) == _canonical(yaml.safe_load(b))
+    except yaml.YAMLError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -85,6 +112,8 @@ def replay_episode(episode: Episode, suite) -> ReplayResult:
     harm = strict = None
     harm_is_se = False
     mismatch: str | None = None
+    state_changed = False  # has the logged attempt itself changed the environment yet?
+    retried = False
     for ex in episode.executed_calls():
         fc = FunctionCall(
             function=ex.call.function, args=copy.deepcopy(ex.call.args), id=ex.call.call_id
@@ -92,12 +121,14 @@ def replay_episode(episode: Episode, suite) -> ReplayResult:
         result, error = runtime.run_function(env, fc.function, fc.args)
         calls.append(fc)
         if mismatch is None:
-            same_text = normalize_volatile(tool_result_to_str(result)) == normalize_volatile(
-                ex.result.text
-            )
+            same_text = outputs_equal(tool_result_to_str(result), ex.result.text)
             if not same_text or (error or None) != (ex.result.error or None):
                 mismatch = f"tool output differs at call {ex.ordinal} ({fc.function})"
+                # A difference before this attempt changed anything must predate the attempt:
+                # AgentDojo re-runs an episode on the same environment when the answer is empty.
+                retried = not state_changed
         se = is_side_effecting(suite.name, fc.function)
+        state_changed = state_changed or se or fc.function in BOOKKEEPING.get(suite.name, ())
         if se:
             se_calls.append(ex.ordinal)
         if inj is not None:
@@ -117,6 +148,8 @@ def replay_episode(episode: Episode, suite) -> ReplayResult:
             mismatch = "final utility differs"
         elif inj is not None and security != episode.security:
             mismatch = "final security differs"
+    if retried and mismatch is not None:
+        mismatch = f"retried: {mismatch}"
     not_preventable = bool(
         inj is not None and episode.security and (harm is None or not harm_is_se)
     )

@@ -155,3 +155,54 @@ def test_unexecuted_trailing_calls_are_not_mismatches():
     r = replay_episode(ep, SUITES["banking"])
     assert r.mismatch is None
     assert len(ep.executed_calls()) == len(ep.requested_calls()) - 1
+
+
+def test_outputs_equal_ignores_participant_order_only():
+    from wwtw.traces.replay import outputs_equal
+
+    a = "id_: '7'\nparticipants:\n- emma@x.com\n- a@x.com\ntitle: t\n"
+    b = "id_: '7'\nparticipants:\n- a@x.com\n- emma@x.com\ntitle: t\n"
+    c = "id_: '7'\nparticipants:\n- a@x.com\n- evil@x.com\ntitle: t\n"
+    assert outputs_equal(a, b)
+    assert not outputs_equal(a, c)
+    assert outputs_equal("{'message': 'ok'}", "{'message': 'ok'}")
+    assert not outputs_equal("plain text one", "plain text two")
+
+
+def test_replay_tolerates_hash_seed_participant_order():
+    """create_calendar_event stores list(set(participants)); order depends on PYTHONHASHSEED."""
+    ep = gt_episode("workspace", "user_task_21", None)
+    events = list(ep.events)
+    for i, e in enumerate(events):
+        if e.kind == "tool_result" and "participants:" in e.text:
+            lines = e.text.split("\n")
+            idx = [k for k, ln in enumerate(lines) if ln.startswith("- ") and "@" in ln]
+            if len(idx) >= 2:
+                lines[idx[0]], lines[idx[1]] = lines[idx[1]], lines[idx[0]]
+                events[i] = dataclasses.replace(e, text="\n".join(lines))
+                break
+    else:
+        raise AssertionError("fixture task has no multi-participant output")
+    r = replay_episode(dataclasses.replace(ep, events=tuple(events)), SUITES["workspace"])
+    assert r.mismatch is None
+
+
+def _tamper(ep, nth_result):
+    events = list(ep.events)
+    idx = [k for k, e in enumerate(events) if e.kind == "tool_result"][nth_result]
+    events[idx] = dataclasses.replace(events[idx], text=events[idx].text + " changed")
+    return dataclasses.replace(ep, events=tuple(events))
+
+
+def test_mismatch_before_any_state_change_is_classified_as_retried():
+    ep = gt_episode("banking", "user_task_0", "injection_task_0")
+    r = replay_episode(_tamper(ep, 0), SUITES["banking"])  # call 0 is read-only
+    assert r.mismatch.startswith("retried: tool output differs at call 0")
+
+
+def test_mismatch_after_a_state_change_stays_unexplained():
+    ep = gt_episode("banking", "user_task_0", "injection_task_0")
+    calls = ep.executed_calls()
+    first_se = next(i for i, c in enumerate(calls) if c.call.function == "send_money")
+    r = replay_episode(_tamper(ep, first_se + 1), SUITES["banking"])
+    assert r.mismatch.startswith("tool output differs") and not r.mismatch.startswith("retried")

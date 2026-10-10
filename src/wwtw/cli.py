@@ -133,7 +133,7 @@ def _episodes(ctx: Ctx, attacks=ATTACKS_ALL):
 
 
 def do_replay(ctx: Ctx, max_mismatch_rate: float = 0.01):
-    total = bad = 0
+    total = bad = retried = 0
     for a in ATTACKS_ALL:
         p = ctx.cfg.paths.data / "traces" / f"{a}.jsonl.gz"
         if not p.exists():
@@ -141,9 +141,21 @@ def do_replay(ctx: Ctx, max_mismatch_rate: float = 0.01):
         results = replay_all(read_episodes(p), ctx.cfg.agent.benchmark_version)
         write_replay_csv(results, ctx.cfg.paths.data / "labels" / f"{a}.csv")
         total += len(results)
-        bad += sum(r.mismatch is not None for r in results)
+        for r in results:
+            if r.mismatch is None:
+                continue
+            if r.mismatch.startswith("retried:"):
+                retried += 1  # AgentDojo re-ran the episode; the log holds only the last attempt
+            else:
+                bad += 1
     rate = bad / total if total else 0.0
-    log.info("replay: %d episodes, %d mismatches (%.2f%%)", total, bad, 100 * rate)
+    log.info(
+        "replay: %d episodes, %d unexplained mismatches (%.2f%%), %d retried episodes excluded",
+        total,
+        bad,
+        100 * rate,
+        retried,
+    )
     if rate > max_mismatch_rate:
         raise click.ClickException(
             f"replay mismatch rate {rate:.2%} exceeds {max_mismatch_rate:.0%}"
