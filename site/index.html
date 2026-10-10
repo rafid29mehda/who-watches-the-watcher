@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Who Watches the Watcher?</title>
+  <meta name="description" content="What should an LLM monitor read when it guards a tool-using agent against prompt injection? A pre-registered study of five monitor views on AgentDojo.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#explorer">Skip to the trace explorer</a>
+
+  <header class="hero">
+    <div class="measure">
+      <h1>Who watches the watcher?</h1>
+      <p class="byline">Rafid Mehda, Independent Researcher</p>
+      <p class="lede">Companies are starting to put a second model in front of an AI agent's actions, to stop it when it has been tricked by text hidden in an email or a web page. That monitor has to read something to judge an action. If it reads the agent's whole transcript, it also reads the attacker's text. We measured what a monitor should be allowed to see.</p>
+      <p class="finding" id="finding">Loading results…</p>
+      <nav class="links" aria-label="Project links">
+        <a href="https://github.com/" id="repo-link">Code and data</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="measure" aria-labelledby="question-h">
+      <h2 id="question-h">The question</h2>
+      <p>An agent receives a task from its user, calls tools, and reads what comes back. An attacker who controls some of that content, such as one email in the inbox, can plant instructions that steer the agent into sending money or data somewhere it should not. A monitor reviews each consequential call before it runs and can halt the agent.</p>
+      <figure class="diagram">
+        <svg viewBox="0 0 720 210" role="img" aria-labelledby="diag-title diag-desc">
+          <title id="diag-title">How the monitor sits in the loop</title>
+          <desc id="diag-desc">The user's task goes to the agent. The agent reads tool outputs, one of which contains injected text, and proposes an action. The monitor inspects the proposed action before it runs. In the full-transcript view, the injected text also reaches the monitor.</desc>
+          <g class="d-node"><rect x="10" y="80" width="120" height="50" rx="10"/><text x="70" y="110">User's task</text></g>
+          <g class="d-node"><rect x="200" y="80" width="120" height="50" rx="10"/><text x="260" y="110">Agent</text></g>
+          <g class="d-node d-tool"><rect x="200" y="5" width="120" height="44" rx="10"/><text x="260" y="32">Tool output</text></g>
+          <g class="d-inj"><rect x="340" y="5" width="150" height="44" rx="10"/><text x="415" y="32">Injected text</text></g>
+          <g class="d-node d-action"><rect x="390" y="80" width="130" height="50" rx="10"/><text x="455" y="110">Proposed action</text></g>
+          <g class="d-node d-monitor"><rect x="590" y="80" width="120" height="50" rx="10"/><text x="650" y="110">Monitor</text></g>
+          <g class="d-node d-exec"><rect x="590" y="160" width="120" height="44" rx="10"/><text x="650" y="187">Runs or halts</text></g>
+          <path class="d-edge" d="M130 105 H196"/>
+          <path class="d-edge" d="M260 49 V76"/>
+          <path class="d-edge" d="M320 105 H386"/>
+          <path class="d-edge" d="M520 105 H586"/>
+          <path class="d-edge" d="M650 130 V156"/>
+          <path class="d-edge d-leak" d="M490 27 C 560 27, 640 30, 650 76"/>
+          <text class="d-note" x="500" y="66">only V3 reads this</text>
+        </svg>
+      </figure>
+      <p>We gave the same monitor model five different views of each proposed action and asked which view catches attacks while letting legitimate work through.</p>
+      <dl class="views" id="views"></dl>
+    </section>
+
+    <section class="wide" aria-labelledby="results-h">
+      <div class="measure">
+        <h2 id="results-h">What we found</h2>
+        <p id="results-intro"></p>
+      </div>
+      <figure class="chart">
+        <figcaption>Attacks caught before they succeed, at a threshold that halts 5% of benign tasks (<span data-bind="monitor"></span> monitor). Whiskers are 95% intervals.</figcaption>
+        <div class="legend" id="catch-legend"></div>
+        <div id="catch-chart" class="chart-area"></div>
+      </figure>
+      <figure class="chart">
+        <figcaption>How well each view separates harmful from legitimate actions (AUROC, 1.0 is perfect), for the small and the larger monitor.</figcaption>
+        <div class="legend" id="auroc-legend"></div>
+        <div id="auroc-chart" class="chart-area"></div>
+      </figure>
+      <figure class="chart">
+        <figcaption>Benign actions wrongly flagged in episodes that contained an injection, at the same threshold. Lower is better.</figcaption>
+        <div id="bua-chart" class="chart-area"></div>
+      </figure>
+      <div class="measure">
+        <h3>Pre-registered hypotheses</h3>
+        <p>We wrote these down before any monitor scored the main traces. Intervals are 95% cluster-bootstrap intervals; p-values are Holm-corrected across the four tests.</p>
+        <div class="table-wrap"><table id="hyp-table"><thead><tr><th scope="col">Question</th><th scope="col">Estimate</th><th scope="col">95% interval</th><th scope="col">p</th><th scope="col">Outcome</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="wide" id="explorer" aria-labelledby="explorer-h">
+      <div class="measure">
+        <h2 id="explorer-h">Look through the monitor's eyes</h2>
+        <p>These are real attacks from the study. Pick one, choose a side-effecting call, and switch views to see exactly the text the monitor received and the score it gave. Injected text is <mark class="inj">highlighted</mark> wherever a view exposes it.</p>
+      </div>
+      <div class="instrument">
+        <div class="controls">
+          <label for="example-select">Attack</label>
+          <select id="example-select"></select>
+          <p class="ex-meta" id="ex-meta"></p>
+        </div>
+        <p class="task"><span class="task-label">User's request</span><span id="ex-task"></span></p>
+        <div class="steps" id="steps" role="group" aria-label="Side-effecting calls in this episode"></div>
+        <div class="tabs" role="tablist" aria-label="Monitor view" id="tabs"></div>
+        <div class="panel" role="tabpanel" id="panel" aria-live="polite">
+          <div class="score" id="score"></div>
+          <pre class="evidence" id="evidence" tabindex="0"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="measure" aria-labelledby="method-h">
+      <h2 id="method-h">How we know</h2>
+      <ul class="checks" id="checks"></ul>
+    </section>
+  </main>
+
+  <footer class="measure">
+    <p>Built on <a href="https://github.com/ethz-spylab/agentdojo">AgentDojo</a>. Every number on this page is read from the study's results file.</p>
+  </footer>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

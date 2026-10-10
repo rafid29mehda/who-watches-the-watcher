@@ -377,3 +377,11 @@ def analyze(click_ctx):
 
     s = run(_ctx(click_ctx).cfg)
     click.echo(json.dumps(s["hypotheses"], indent=2))
+
+
+@main.command("site-data")
+@click.pass_context
+def site_data(click_ctx):
+    from wwtw.site_data import build_site_data
+
+    build_site_data(_ctx(click_ctx).cfg)
