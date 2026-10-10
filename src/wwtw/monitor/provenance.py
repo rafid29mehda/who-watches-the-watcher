@@ -15,6 +15,8 @@ USER = "USER"
 _WS = re.compile(r"\s+")
 _THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}\b)")
 _WORD = re.compile(r"\w+")
+_UNSAFE_KEY = re.compile(r"[^A-Za-z0-9_-]")
+_BRACKETS = str.maketrans({"[": "\\u005b", "]": "\\u005d"})
 
 
 @dataclass(frozen=True)
@@ -58,14 +60,36 @@ def _leaf_text(v: Any) -> str:
     return str(v)
 
 
+def display_text(text: str, max_chars: int | None = None) -> str:
+    """JSON-encode text that may be attacker-influenced and escape brackets, so it can never
+    imitate the code-generated "[sources: ...]" labels. Optionally cap its length."""
+    if max_chars is not None and len(text) > max_chars:
+        text = f"{text[:max_chars]}...(+{len(text) - max_chars} chars)"
+    return json.dumps(text, ensure_ascii=False).translate(_BRACKETS)
+
+
 def _display(v: Any) -> str:
-    return json.dumps(v, ensure_ascii=False) if isinstance(v, str) else _leaf_text(v)
+    return display_text(v) if isinstance(v, str) else _leaf_text(v)
+
+
+def _contains_token(value_norm: str, source_norm: str) -> bool:
+    """Substring match that does not start or end inside a longer alphanumeric token."""
+    start = 0
+    while (i := source_norm.find(value_norm, start)) >= 0:
+        j = i + len(value_norm)
+        bad_start = i > 0 and source_norm[i - 1].isalnum() and value_norm[0].isalnum()
+        bad_end = j < len(source_norm) and source_norm[j].isalnum() and value_norm[-1].isalnum()
+        if not (bad_start or bad_end):
+            return True
+        start = i + 1
+    return False
 
 
 def flatten_args(args: Mapping[str, Any], prefix: str = "") -> list[tuple[str, Any]]:
     out: list[tuple[str, Any]] = []
     for k, v in args.items():
-        out.extend(_flatten(f"{prefix}.{k}" if prefix else str(k), v))
+        key = _UNSAFE_KEY.sub("?", str(k))
+        out.extend(_flatten(f"{prefix}.{key}" if prefix else key, v))
     return out
 
 
@@ -112,7 +136,7 @@ def compute_provenance(
             labels = tuple(lbl for lbl, src in numeric_sources if pat.search(src))
             out.append(LeafProvenance(path, "short", text, _display(raw), labels))
         elif len(text) <= long_threshold:
-            labels = tuple(lbl for lbl, src in sources if norm in src)
+            labels = tuple(lbl for lbl, src in sources if _contains_token(norm, src))
             out.append(LeafProvenance(path, "short", text, _display(raw), labels))
         else:
             leaf_sh = _shingles(norm)
@@ -130,7 +154,9 @@ def compute_provenance(
                 EntityProvenance(
                     kind,
                     value,
-                    tuple(lbl for lbl, src in sources if normalize_entity(value) in src),
+                    tuple(
+                        lbl for lbl, src in sources if _contains_token(normalize_entity(value), src)
+                    ),
                 )
                 for kind, value in extract_entities(text)
             )
