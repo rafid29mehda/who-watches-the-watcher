@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Raw run artifacts & caches (normalized traces/scores in data/ ARE committed)
+runs/
+.cache/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Private working notes
+private/
+.state/
+.hypothesis/
+
