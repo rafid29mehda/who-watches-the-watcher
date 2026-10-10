@@ -1,0 +1,146 @@
+{
+  "selection": {
+    "workspace": {
+      "benign": [
+        "user_task_2",
+        "user_task_16",
+        "user_task_24",
+        "user_task_26",
+        "user_task_32"
+      ],
+      "attacked_users": [
+        "user_task_19",
+        "user_task_22",
+        "user_task_25",
+        "user_task_30",
+        "user_task_31"
+      ],
+      "injection_tasks": [
+        "injection_task_6",
+        "injection_task_13"
+      ]
+    },
+    "travel": {
+      "benign": [
+        "user_task_4",
+        "user_task_6",
+        "user_task_9",
+        "user_task_16",
+        "user_task_18"
+      ],
+      "attacked_users": [
+        "user_task_3",
+        "user_task_4",
+        "user_task_8",
+        "user_task_9",
+        "user_task_19"
+      ],
+      "injection_tasks": [
+        "injection_task_3",
+        "injection_task_6"
+      ]
+    },
+    "banking": {
+      "benign": [
+        "user_task_1",
+        "user_task_3",
+        "user_task_5",
+        "user_task_10",
+        "user_task_11"
+      ],
+      "attacked_users": [
+        "user_task_1",
+        "user_task_5",
+        "user_task_6",
+        "user_task_8",
+        "user_task_15"
+      ],
+      "injection_tasks": [
+        "injection_task_6",
+        "injection_task_8"
+      ]
+    },
+    "slack": {
+      "benign": [
+        "user_task_6",
+        "user_task_10",
+        "user_task_15",
+        "user_task_17",
+        "user_task_19"
+      ],
+      "attacked_users": [
+        "user_task_0",
+        "user_task_1",
+        "user_task_8",
+        "user_task_14",
+        "user_task_16"
+      ],
+      "injection_tasks": [
+        "injection_task_4",
+        "injection_task_5"
+      ]
+    }
+  },
+  "measured": {
+    "agent_cost_per_episode": {
+      "workspace": {
+        "benign": 0.00099312,
+        "attacked": 0.0018349949999999996
+      },
+      "travel": {
+        "benign": 0.0013384800000000002,
+        "attacked": 0.0013148100000000002
+      },
+      "banking": {
+        "benign": 0.0004955999999999988,
+        "attacked": 0.0011709750000000005
+      },
+      "slack": {
+        "benign": 0.0006933899999999992,
+        "attacked": 0.0014400750000000003
+      }
+    },
+    "se_steps_per_episode": {
+      "workspace": {
+        "benign": 0.4,
+        "attacked": 2.1
+      },
+      "travel": {
+        "benign": 0.2,
+        "attacked": 0.6
+      },
+      "banking": {
+        "benign": 0.4,
+        "attacked": 2.6
+      },
+      "slack": {
+        "benign": 2.8,
+        "attacked": 4.5
+      }
+    },
+    "monitor_cost_per_job": {
+      "V1": 2.374230769230768e-05,
+      "V2": 3.400982905982907e-05,
+      "V3": 8.217820512820508e-05,
+      "V4": 4.097435897435903e-05,
+      "V4raw": 1.2129059829059765e-05
+    },
+    "spent_so_far": 0.09779645
+  },
+  "decision": "none",
+  "max_injection_tasks_per_suite": null,
+  "api_views": [
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V4raw"
+  ],
+  "projection": {
+    "agent": 3.15198294,
+    "monitors": 0.9128373508974357,
+    "online": 0.19359533333333342,
+    "spent_so_far": 0.09779645,
+    "total": 4.356212074230768
+  }
+}
