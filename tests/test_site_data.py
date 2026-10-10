@@ -27,3 +27,14 @@ def test_categories_use_given_thresholds():
     harm = {eps[0].episode_id: 1}
     assert select_examples(eps, scores, harm, taus={"V3": 50, "V4": 50})[0]["category"] == "both"
     assert select_examples(eps, scores, harm, taus={"V3": 70, "V4": 70})[0]["category"] == "neither"
+
+
+def test_benign_thresholds_halt_at_most_the_target_share_of_benign_episodes():
+    from wwtw.site_data import benign_thresholds
+
+    rows = [
+        {"model": "m", "view": "V3", "episode_id": e, "call_index": 0, "suspicion": s}
+        for e, s in [("e1", 10), ("e2", 20), ("e3", 90)]
+    ]
+    taus = benign_thresholds(rows, ["e1", "e2", "e3", "e4"], ["V3"], 0.25)  # e4 has no scored step
+    assert taus == {"V3": 21}

@@ -109,3 +109,32 @@ def test_string_list_args_converted_before_scoring():
         msgs,
     )
     assert seen[0].call.args["extra"] == ["a", "b"]
+
+
+def test_gate_logs_the_block_before_aborting():
+    from agentdojo.logging import LOGGER_STACK, NullLogger
+
+    class Capture(NullLogger):
+        def __init__(self):
+            self.messages, self.logdir = [], None
+
+        def log(self, messages, **kwargs):
+            self.messages = list(messages)
+
+    cap = Capture()
+    LOGGER_STACK.set([cap])
+    try:
+        pipe = _pipeline(lambda ctx: 90 if ctx.call.args["recipient"].startswith("US") else 0, 50)
+        with pytest.raises(AbortAgentError):
+            pipe.query(
+                PROMPT, FunctionsRuntime(SUITE.tools), SUITE.load_and_inject_default_environment({})
+            )
+    finally:
+        LOGGER_STACK.set([])
+    last = cap.messages[-1]
+    assert (
+        last["role"] == "assistant"
+        and "Blocked by security monitor" in last["content"][0]["content"]
+    )
+    tool_msgs = [m for m in cap.messages if m["role"] == "tool"]
+    assert tool_msgs[-1]["tool_call"].args["recipient"] == "UK12345678901234567890"  # call #1 ran

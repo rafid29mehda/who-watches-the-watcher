@@ -77,13 +77,20 @@ def select_examples(
     return chosen
 
 
-def _thresholds(summary: dict, attack: str) -> dict[str, int]:
-    """Display threshold per view: the mean of the two cross-fitted 5%-FPR thresholds."""
-    primary = summary["meta"]["primary_monitor"]
+def benign_thresholds(rows, benign_episode_ids, views, fpr: float) -> dict[str, int]:
+    """Per view, the 5%-FPR threshold over all benign episodes (the rule the online gate used).
+
+    Benign episodes without a scored side-effecting call can never be halted."""
+    import numpy as np
+
+    from wwtw.analysis.metrics import NO_SCORE, score_index, threshold_for_fpr
+
+    idx = score_index(rows)
     out = {}
-    for r in summary["results"]:
-        if r["model"] == primary and r["attack"] == attack and r.get("thresholds_5"):
-            out[r["view"]] = round(sum(r["thresholds_5"]) / len(r["thresholds_5"]))
+    for v in views:
+        per_ep = next((s for (m, view), s in idx.items() if view == v), {})
+        bmax = [max(per_ep[e].values()) if e in per_ep else NO_SCORE for e in benign_episode_ids]
+        out[v] = threshold_for_fpr(np.asarray(bmax), fpr)
     return out
 
 
@@ -96,9 +103,13 @@ def build_site_data(cfg, out_dir: Path = Path("site/data")) -> None:
     summary = json.loads((cfg.paths.results / "summary.json").read_text())
     shutil.copy(cfg.paths.results / "summary.json", out_dir / "summary.json")
     api = summary["meta"]["primary_monitor"]
+    benign = read_episodes(cfg.paths.data / "traces" / "none.jsonl.gz")
+    benign_rows = read_scores_csv(cfg.paths.data / "scores" / api / "none.csv")
+    taus = benign_thresholds(
+        benign_rows, [e.episode_id for e in benign], VIEWS, cfg.analysis.primary_fpr
+    )
     examples, thresholds = [], {}
     for attack in ["important_instructions", "monitor_aware"]:
-        taus = _thresholds(summary, attack)
         thresholds[attack] = taus
         eps = [
             e for e in read_episodes(cfg.paths.data / "traces" / f"{attack}.jsonl.gz") if e.security

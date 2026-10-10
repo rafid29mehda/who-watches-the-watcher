@@ -16,6 +16,7 @@ _WS = re.compile(r"\s+")
 _THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}\b)")
 _WORD = re.compile(r"\w+")
 _UNSAFE_KEY = re.compile(r"[^A-Za-z0-9_-]")
+_UNSAFE_NAME = re.compile(r"[^A-Za-z0-9_.-]")  # tool names inside labels
 _BRACKETS = str.maketrans({"[": "\\u005b", "]": "\\u005d"})
 
 
@@ -121,7 +122,7 @@ def compute_provenance(
     long_threshold: int = 120,
 ) -> list[LeafProvenance]:
     sources = [(USER, normalize(user_prompt))] + [
-        (f"TOOL({fn}#{k})", normalize(text)) for fn, k, text in tool_outputs
+        (f"TOOL({_UNSAFE_NAME.sub('?', fn)}#{k})", normalize(text)) for fn, k, text in tool_outputs
     ]
     numeric_sources = [(label, _THOUSANDS.sub("", text)) for label, text in sources]
     shingle_cache: dict[str, set] = {}

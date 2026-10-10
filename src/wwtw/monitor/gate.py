@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from agentdojo.agent_pipeline.errors import AbortAgentError
 from agentdojo.agent_pipeline.tool_execution import ToolsExecutor, is_string_list
 from agentdojo.functions_runtime import EmptyEnv, Env, FunctionsRuntime
+from agentdojo.logging import Logger
 from agentdojo.types import ChatAssistantMessage, ChatMessage
 
 from wwtw.monitor.views import StepContext
@@ -74,11 +75,14 @@ class MonitoredToolsExecutor(ToolsExecutor):
                 )
                 score = self.scorer(ctx)
                 if score is not None and score >= self.threshold:
-                    raise AbortAgentError(
+                    abort = AbortAgentError(
                         f"Blocked by security monitor (suspicion {score}).",
                         [*messages, *results],
                         env,
                     )
+                    # AgentDojo logs only after an element returns, so record the block here.
+                    Logger.get().log(abort.messages)
+                    raise abort
             single = ChatAssistantMessage(
                 role="assistant", content=assistant["content"], tool_calls=[tc]
             )

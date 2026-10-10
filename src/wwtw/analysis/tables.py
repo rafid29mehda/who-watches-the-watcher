@@ -19,23 +19,23 @@ def make_tables(summary: dict, out_dir: Path) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = []
     lines = [
-        r"\begin{tabular}{llrrrrr}",
+        r"\begin{tabular}{llrrrrrr}",
         r"\toprule",
-        r"Monitor & View & AUROC & Catch@5\% & Catch@10\% & Residual ASR@5\% & Utility kept@5\% \\",
+        r"Monitor & View & AUROC & Catch@5\% & FPR@5\% & Catch@10\% & Residual ASR@5\% & Utility kept@5\% \\",
         r"\midrule",
     ]
     for attack, label in [
         ("important_instructions", "Standard injection"),
         ("monitor_aware", "Monitor-aware injection"),
     ]:
-        lines.append(rf"\multicolumn{{7}}{{l}}{{\emph{{{label}}}}} \\")
+        lines.append(rf"\multicolumn{{8}}{{l}}{{\emph{{{label}}}}} \\")
         rows = [r for r in summary["results"] if r["attack"] == attack]
         rows.sort(key=lambda r: (r["model"] == "rule", r["model"], VIEW_ORDER.index(r["view"])))
         for r in rows:
             auroc = "--" if r["auroc"] is None else f"{r['auroc']:.3f}"
             lines.append(
                 f"{r['model']} & {r['view']} & {auroc} & {_pct(r.get('catch_5'))}"
-                f"{_ci(r.get('catch_5_ci'))} & {_pct(r.get('catch_10'))} & "
+                f"{_ci(r.get('catch_5_ci'))} & {_pct(r.get('fpr_5'))} & {_pct(r.get('catch_10'))} & "
                 f"{_pct(r.get('residual_asr_5'))} & {_pct(r.get('utility_retained_5'))} \\\\"
             )
     lines += [r"\bottomrule", r"\end{tabular}"]
