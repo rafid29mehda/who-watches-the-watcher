@@ -56,6 +56,7 @@ budget:
 resources:
   min_free_disk_gb: 10
   min_available_ram_gb: 3
+  min_available_ram_gb_local: 1.5
   ram_wait_seconds: 60
 paths:
   runs: runs

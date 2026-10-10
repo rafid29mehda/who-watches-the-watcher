@@ -85,3 +85,10 @@ def test_rule_rows_and_csv_roundtrip(tmp_path):
     back = read_scores_csv(p)
     assert [r["episode_id"] for r in back] == [r["episode_id"] for r in rows]
     assert isinstance(back[0]["suspicion"], int) and isinstance(back[0]["call_index"], int)
+
+
+def test_between_groups_hook_runs_before_each_group():
+    groups = plan_jobs([BEN, ATT], ["V1"])
+    calls = []
+    score_jobs(groups, LLMMonitor(ViewBackend()), "m", between_groups=lambda: calls.append(1))
+    assert len(calls) == len(groups)

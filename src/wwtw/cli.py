@@ -34,7 +34,7 @@ from wwtw.monitor.run import (
     score_jobs,
     write_scores_csv,
 )
-from wwtw.resources import doctor_report, guard
+from wwtw.resources import doctor_report, guard, wait_for_ram
 from wwtw.traces.load import load_run_dir, read_episodes, write_episodes
 from wwtw.traces.replay import read_replay_csv, replay_all, write_replay_csv
 
@@ -212,6 +212,12 @@ def do_monitors(ctx: Ctx, models=None, retest=True):
                 benign_limit=m.benign_episode_limit,
                 seed=cfg.seed,
             )
+            # The local model's own memory counts against "available", so it gets a lower floor.
+            floor = (
+                cfg.resources.min_available_ram_gb_local
+                if m.backend == "ollama"
+                else cfg.resources.min_available_ram_gb
+            )
             rows, truncated = score_jobs(
                 groups,
                 monitor,
@@ -219,6 +225,9 @@ def do_monitors(ctx: Ctx, models=None, retest=True):
                 workers=m.workers,
                 max_minutes=m.max_minutes,
                 progress=_progress(m.name),
+                between_groups=lambda floor=floor: wait_for_ram(
+                    floor, cfg.resources.ram_wait_seconds
+                ),
             )
             if truncated:
                 log.info("%s: time cap reached; scored %d rows", m.name, len(rows))

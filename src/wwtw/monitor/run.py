@@ -137,6 +137,7 @@ def score_jobs(
     max_minutes: float | None = None,
     clock: Callable[[], float] = time.monotonic,
     progress: Callable[[int, int], None] | None = None,
+    between_groups: Callable[[], None] | None = None,
 ) -> tuple[list[dict], bool]:
     total = sum(len(g) for g in groups)
     if workers > 1 and max_minutes is None:
@@ -151,6 +152,8 @@ def score_jobs(
     for group in groups:
         if max_minutes is not None and clock() - start > max_minutes * 60:
             return rows, True
+        if between_groups is not None:
+            between_groups()
         rows.extend(_score(j, monitor, model_name) for j in group)
         if progress is not None:
             progress(len(rows), total)

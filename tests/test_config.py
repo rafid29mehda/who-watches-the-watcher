@@ -32,3 +32,9 @@ def test_rejects_unknown_backend():
     raw["monitor"]["models"][0]["backend"] = "azure"
     with pytest.raises(ValidationError):
         ExperimentConfig.model_validate(raw)
+
+
+def test_local_ram_floor_configured():
+    cfg = load_config("configs/experiment.yaml")
+    assert cfg.resources.min_available_ram_gb == 3
+    assert cfg.resources.min_available_ram_gb_local == 1.5

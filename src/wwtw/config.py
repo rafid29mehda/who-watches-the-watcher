@@ -94,6 +94,7 @@ class BudgetCfg(BaseModel):
 class ResourcesCfg(BaseModel):
     min_free_disk_gb: float = 10
     min_available_ram_gb: float = 3
+    min_available_ram_gb_local: float = 1.5  # floor while the local model itself is loaded
     ram_wait_seconds: float = 60
 
 
