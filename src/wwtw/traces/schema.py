@@ -44,12 +44,18 @@ class Episode:
     error: str | None = None
 
     def executed_calls(self) -> list[ExecutedCall]:
+        """Calls that actually ran (have a recorded result), in execution order."""
         results = {e.ordinal: e for e in self.events if e.kind == "tool_result"}
         return [
-            ExecutedCall(e.ordinal, e.call, results.get(e.ordinal), i)
+            ExecutedCall(e.ordinal, e.call, results[e.ordinal], i)
             for i, e in enumerate(self.events)
-            if e.kind == "tool_call"
+            if e.kind == "tool_call" and e.ordinal in results
         ]
+
+    def requested_calls(self) -> list[ToolCall]:
+        """Every call the agent requested, including trailing ones that never ran (e.g. when
+        AgentDojo's tool loop hit its iteration limit). Mirrors AgentDojo's stack trace."""
+        return [e.call for e in self.events if e.kind == "tool_call"]
 
 
 def make_episode_id(

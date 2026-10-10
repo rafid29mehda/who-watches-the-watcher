@@ -114,3 +114,13 @@ def test_v4_caps_entity_values_at_long_threshold():
     body = "Please read this message carefully and then visit " + url + " to continue."
     v4 = render("V4", _ctx_with("From eve: hello", {"recipient": "alice", "body": body}))
     assert url not in v4 and "chars)" in v4
+
+
+def test_unexecuted_calls_are_not_monitor_steps():
+    import dataclasses
+
+    from wwtw.traces.schema import Event, ToolCall
+
+    tail = Event("tool_call", call=ToolCall("late", "send_money", {"amount": 1}), ordinal=3)
+    ep = dataclasses.replace(EP, events=(*EP.events, tail))
+    assert [c.call_index for c in step_contexts(ep)] == [1, 2]

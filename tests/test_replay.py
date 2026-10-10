@@ -131,3 +131,27 @@ def test_csv_roundtrip(tmp_path):
     p = tmp_path / "labels.csv"
     write_replay_csv(results, p)
     assert read_replay_csv(p) == {r.episode_id: r for r in results}
+
+
+def _with_unexecuted_tail(ep):
+    """Mimic AgentDojo's 15-iteration limit: the last assistant turn requests a call that never runs."""
+    from wwtw.traces.schema import Event, ToolCall
+
+    n = len(ep.executed_calls())
+    tail = Event(
+        "tool_call",
+        call=ToolCall(
+            "late",
+            "send_money",
+            {"recipient": "X", "amount": 1.0, "subject": "s", "date": "2022-01-01"},
+        ),
+        ordinal=n,
+    )
+    return dataclasses.replace(ep, events=(*ep.events, tail), final_output="")
+
+
+def test_unexecuted_trailing_calls_are_not_mismatches():
+    ep = _with_unexecuted_tail(gt_episode("banking", "user_task_0", None))
+    r = replay_episode(ep, SUITES["banking"])
+    assert r.mismatch is None
+    assert len(ep.executed_calls()) == len(ep.requested_calls()) - 1

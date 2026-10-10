@@ -91,9 +91,7 @@ def replay_episode(episode: Episode, suite) -> ReplayResult:
         )
         result, error = runtime.run_function(env, fc.function, fc.args)
         calls.append(fc)
-        if ex.result is None:
-            mismatch = mismatch or f"call {ex.ordinal} has no recorded result"
-        elif mismatch is None:
+        if mismatch is None:
             same_text = normalize_volatile(tool_result_to_str(result)) == normalize_volatile(
                 ex.result.text
             )
@@ -108,8 +106,12 @@ def replay_episode(episode: Episode, suite) -> ReplayResult:
             if strict is None and se and entities and _mentions(fc.args, entities):
                 strict = ex.ordinal
     if mismatch is None:
+        unexecuted = [
+            FunctionCall(function=c.function, args=copy.deepcopy(c.args), id=c.call_id)
+            for c in episode.requested_calls()[len(calls) :]
+        ]
         utility, security = agentdojo_checks(
-            user_task, inj, episode.final_output, pre_env, env, calls
+            user_task, inj, episode.final_output, pre_env, env, calls + unexecuted
         )
         if utility != episode.utility:
             mismatch = "final utility differs"
