@@ -1,0 +1,7 @@
+{
+  "threshold": 73,
+  "suite": "banking",
+  "view": "V4",
+  "monitor": "gpt-5-nano",
+  "fpr": 0.05
+}
