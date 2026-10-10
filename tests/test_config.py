@@ -14,9 +14,12 @@ def test_loads_repo_config():
     assert cfg.budget.cap_usd == 20.0
     assert cfg.budget.prices["gpt-5-nano-2025-08-07"].output == 0.40
     names = [m.name for m in cfg.monitor.models]
-    assert names == ["gpt-5-nano", "llama3.2-3b"]
+    assert names == ["gpt-5-nano", "gpt-5-mini"]
     assert cfg.monitor.models[0].views == list(VIEWS)
-    assert cfg.monitor.models[1].max_minutes == 60
+    second = cfg.monitor.models[1]
+    assert second.backend == "openai" and second.views == ["V1", "V3", "V4"]
+    assert second.attacked_scope == "all" and second.max_minutes is None
+    assert cfg.budget.prices["gpt-5-mini-2025-08-07"].output == 2.00
     assert cfg.online.view == "V4"
 
 

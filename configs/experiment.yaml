@@ -25,16 +25,14 @@ monitor:
       max_output_tokens: 1000
       views: [V1, V2, V3, V4, V4raw]
       workers: 4
-    - name: llama3.2-3b
-      backend: ollama
-      model: "llama3.2:3b"
+    - name: gpt-5-mini  # replaces the local llama3.2:3b arm (Amendment 1: it overheated the laptop)
+      backend: openai
+      model: gpt-5-mini-2025-08-07
+      reasoning_effort: minimal
+      json_mode: true
+      max_output_tokens: 1000
       views: [V1, V3, V4]
-      workers: 1
-      max_minutes: 60
-      max_evidence_chars: 20000
-      benign_episode_limit: 50
-      attacked_scope: successful_until_harm
-      num_ctx: 8192
+      workers: 4
 online:
   suite: banking
   attack: important_instructions
@@ -53,6 +51,7 @@ budget:
   prices:  # USD per 1M tokens
     gpt-4o-mini-2024-07-18: {input: 0.15, cached_input: 0.075, output: 0.60}
     gpt-5-nano-2025-08-07: {input: 0.05, cached_input: 0.005, output: 0.40}
+    gpt-5-mini-2025-08-07: {input: 0.25, cached_input: 0.025, output: 2.00}
 resources:
   min_free_disk_gb: 10
   min_available_ram_gb: 3
