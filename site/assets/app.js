@@ -71,11 +71,9 @@ function fillText(summary) {
   const repoBase = location.hostname.endsWith(".github.io")
     ? `https://github.com/${location.hostname.split(".")[0]}/${location.pathname.split("/").filter(Boolean)[0] || ""}`
     : null;
-  for (const [id, suffix] of [["repo-link", ""]]) {
-    const a = document.getElementById(id);
-    if (repoBase) a.href = repoBase + suffix;
-    else a.remove();
-  }
+  const repoLink = document.getElementById("repo-link");
+  if (repoBase) repoLink.href = repoBase;
+  else repoLink.remove();
 }
 
 function fillChecks(summary) {

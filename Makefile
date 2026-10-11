@@ -52,7 +52,7 @@ reproduce-from-cache: analyze site
 reproduce-all: agents replay monitors validate-online analyze
 
 stop:
-	-pkill -INT -f "[w]wtw " ; curl -s -X POST localhost:11434/api/generate -d '{"model":"llama3.2:3b","keep_alive":0}' >/dev/null || true
+	-pkill -INT -f "[w]wtw "
 
 .PHONY: site
 site:
